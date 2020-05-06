@@ -32,6 +32,7 @@ ap.add_argument('--nms_threshold', type=float, default=0.5, help='nms threshold,
 ap.add_argument('--cuda', type=bool, default=True)
 ap.add_argument('--device', type=int, default=0)
 ap.add_argument('--float16', type=bool, default=False)
+ap.add_argument('--override', type=bool, default=True, help='override previous bbox results file if exists')
 args = ap.parse_args()
 
 compound_coef = args.compound_coef
@@ -39,6 +40,7 @@ nms_threshold = args.nms_threshold
 use_cuda = args.cuda
 gpu = args.device
 use_float16 = args.float16
+override_prev_results = args.override
 project_name = args.project
 weights_path = f'weights/efficientdet-d{compound_coef}.pth' if args.weights is None else args.weights
 
@@ -119,12 +121,15 @@ def evaluate_coco(img_path, set_name, image_ids, coco, model, threshold=0.05):
         raise Exception('the model does not provide any valid output, check model architecture and the data input')
 
     # write output
-    json.dump(results, open(f'{set_name}_bbox_results.json', 'w'), indent=4)
+    filepath = f'{set_name}_bbox_results.json'
+    if os.path.exists(filepath):
+        os.remove(filepath)
+    json.dump(results, open(filepath, 'w'), indent=4)
 
     return processed_image_ids
 
 
-def eval(coco_gt, image_ids, pred_json_path):
+def _eval(coco_gt, image_ids, pred_json_path):
     # load results in COCO evaluation tool
     coco_pred = coco_gt.loadRes(pred_json_path)
 
@@ -144,9 +149,10 @@ if __name__ == '__main__':
     MAX_IMAGES = 10000
     coco_gt = COCO(VAL_GT)
     image_ids = coco_gt.getImgIds()[:MAX_IMAGES]
-
-    if not os.path.exists(f'{SET_NAME}_bbox_results.json'):
-        model = EfficientDetBackbone(compound_coef=compound_coef, num_classes=len(obj_list))
+    
+    if override_prev_results or not os.path.exists(f'{SET_NAME}_bbox_results.json'):
+        model = EfficientDetBackbone(compound_coef=compound_coef, num_classes=len(obj_list),
+                                     ratios=eval(params['anchors_ratios']), scales=eval(params['anchors_scales']))
         model.load_state_dict(torch.load(weights_path, map_location=torch.device('cpu')))
         model.requires_grad_(False)
         model.eval()
@@ -159,6 +165,4 @@ if __name__ == '__main__':
 
         image_ids = evaluate_coco(VAL_IMGS, SET_NAME, image_ids, coco_gt, model)
 
-        eval(coco_gt, image_ids, f'{SET_NAME}_bbox_results.json')
-    else:
-        eval(coco_gt, image_ids, f'{SET_NAME}_bbox_results.json')
+    _eval(coco_gt, image_ids, f'{SET_NAME}_bbox_results.json')

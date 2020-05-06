@@ -1,6 +1,6 @@
 # Yet Another EfficientDet Pytorch
 
-The pytorch re-implement of the official [EfficientDet](https://github.com/google/automl/efficientdet) with SOTA performance in real time, original paper link: https://arxiv.org/abs/1911.09070
+The pytorch re-implement of the official [EfficientDet](https://github.com/google/automl/tree/master/efficientdet) with SOTA performance in real time, original paper link: https://arxiv.org/abs/1911.09070
 
 
 # Performance
@@ -14,8 +14,8 @@ The speed/FPS test includes the time of post-processing with no jit/data precisi
 | coefficient | pth_download | GPU Mem(MB) | FPS | Extreme FPS (Batchsize 32) | mAP 0.5:0.95(this repo) | mAP 0.5:0.95(paper) |
 | :-----: | :-----: | :------: | :------: | :------: | :-----: | :-----: |
 | D0 | [efficientdet-d0.pth](https://github.com/zylo117/Yet-Another-Efficient-Pytorch/releases/download/1.0/efficientdet-d0.pth) | 1049 | 36.20 | 163.14 | 32.6 | 33.8
-| D1 | [efficientdet-d1.pth](https://github.com/zylo117/Yet-Another-Efficient-Pytorch/releases/download/1.0/efficientdet-d1.pth) | 1159 | 29.69 | 53.82 | 38.2 | 39.6
-| D2 | [efficientdet-d2.pth](https://github.com/zylo117/Yet-Another-Efficient-Pytorch/releases/download/1.0/efficientdet-d2.pth) | 1321 | 26.50 | 40.43 | 41.5 | 43.0
+| D1 | [efficientdet-d1.pth](https://github.com/zylo117/Yet-Another-Efficient-Pytorch/releases/download/1.0/efficientdet-d1.pth) | 1159 | 29.69 | 63.08 | 38.2 | 39.6
+| D2 | [efficientdet-d2.pth](https://github.com/zylo117/Yet-Another-Efficient-Pytorch/releases/download/1.0/efficientdet-d2.pth) | 1321 | 26.50 | 40.99 | 41.5 | 43.0
 | D3 | [efficientdet-d3.pth](https://github.com/zylo117/Yet-Another-Efficient-Pytorch/releases/download/1.0/efficientdet-d3.pth) | 1647 | 22.73 | - | 44.9 | 45.8
 | D4 | [efficientdet-d4.pth](https://github.com/zylo117/Yet-Another-Efficient-Pytorch/releases/download/1.0/efficientdet-d4.pth) | 1903 | 14.75 | - | 48.1 | 49.4
 | D5 | [efficientdet-d5.pth](https://github.com/zylo117/Yet-Another-Efficient-Pytorch/releases/download/1.0/efficientdet-d5.pth) | 2255 | 7.11 | - | 49.5 | 50.7
@@ -24,24 +24,39 @@ The speed/FPS test includes the time of post-processing with no jit/data precisi
 
 ## Speed Test
 
-This pure-pytorch implement is 26 times faster than the official Tensorflow version without any trick.
+This pure-pytorch implement is up to 2 times faster than the official Tensorflow version without any trick.
 
-| coefficient | Time | FPS |  Ratio |
+Recorded on 2020-04-26, 
+
+official git version: https://github.com/google/automl/commit/006668f2af1744de0357ca3d400527feaa73c122
+
+| coefficient | FPS(this repo, tested on RTX2080Ti) | FPS(official, tested on T4) |  Ratio |
 | :------: | :------: | :------: | :-----: |
-| Official D0 (tf postprocess) | 0.713s | 1.40 | 1X |
-| Official D0 (numpy postprocess) | 0.477s | 2.09 | 1.49X |
-| **_Yet-Another-EfficientDet-D0_** | **_0.028s_** | **_36.20_** | **_25.86X_** |
+| D0 | 36.20 | 42.1 | 0.86X |
+| D1 | 29.69 | 27.7 | 1.07X |
+| D2 | 26.50 | 19.7 | 1.35X |
+| D3 | 22.73 | 11.8 | 1.93X |
+| D4 | 14.75 | 7.1 | 2.08X |
+| D5 | 7.11 | 3.6 | 1.98X |
+| D6 | 5.30 | 2.6 | 2.03X |
+| D7 | 3.73 | - | - |
 
 
-Test method:
+Test method (this repo):
 
 Run this test on 2080Ti, Ubuntu 19.10 x64.
-1. Prepare two image tensor with the same content, size (1,3,512,512)-pytorch, (1,512,512,3)-tensorflow.
+1. Prepare a image tensor with the same content, size (1,3,512,512)-pytorch.
 2. Initiate everything by inferring once.
 3. Run 10 times with batchsize 1 and calculate the average time, including post-processing and visualization, to make the test more practical.
 
 ___
 # Update log
+
+[2020-05-04] fix coco category id mismatch bug, but it shouldn't affect training on custom dataset.
+
+[2020-04-14] fixed loss function bug. please pull the latest code.
+
+[2020-04-14] for those who needs help or can't get a good result after several epochs, check out this [tutorial](tutorial/train_shape.ipynb). You can run it on colab with GPU support.
 
 [2020-04-10] warp the loss function within the training model, so that the memory usage will be balanced when training with multiple gpus, enabling training with bigger batchsize. 
 
@@ -64,7 +79,7 @@ ___
 # Demo
 
     # install requirements
-    pip install pycocotools numpy opencv-python tqdm tensorboard tensorboardX pyyaml
+    pip install pycocotools numpy opencv-python tqdm tensorboard tensorboardX pyyaml webcolors
     pip install torch==1.4.0
     pip install torchvision==0.5.0
      
@@ -72,6 +87,10 @@ ___
     python efficientdet_test.py
 
 # Training
+
+Training EfficientDet is a painful and time-consuming task. You shouldn't expect to get a good result within a day or two. Please be patient. 
+
+Check out this [tutorial](tutorial/train_shape.ipynb) if you are new to this. You can run it on colab with GPU support.
 
 ## 1. Prepare your dataset
 
@@ -128,7 +147,7 @@ ___
     obj_list: ['person', 'bicycle', 'car', ...]
 
 
-## 3.a. Train on coco from scratch
+## 3.a. Train on coco from scratch(not necessary)
 
     # train efficientdet-d0 on coco from scratch 
     # with batchsize 12
@@ -140,27 +159,27 @@ ___
     # The first few epoches will be rather unstable,
     # it's quite normal when you train from scratch.
     
-    python train.py -c 0 --batchsize 12
+    python train.py -c 0 --batch_size 64 --optim sgd --lr 8e-2
     
 ## 3.b. Train a custom dataset from scratch
     
     # train efficientdet-d1 on a custom dataset 
     # with batchsize 8 and learning rate 1e-5
     
-    python train.py -c 1 --batchsize 8 --lr 1e-5
+    python train.py -c 1 -p your_project_name --batch_size 8 --lr 1e-5
     
 ## 3.c. Train a custom dataset with pretrained weights (Highly Recommended)
 
     # train efficientdet-d2 on a custom dataset with pretrained weights
     # with batchsize 8 and learning rate 1e-5 for 10 epoches
     
-    python train.py -c 2 --batchsize 8 --lr 1e-5 --num_epochs 10 \
+    python train.py -c 2 -p your_project_name --batch_size 8 --lr 1e-5 --num_epochs 10 \
      --load_weights /path/to/your/weights/efficientdet-d2.pth
     
     # with a coco-pretrained, you can even freeze the backbone and train heads only
     # to speed up training and help convergence.
     
-    python train.py -c 2 --batchsize 8 --lr 1e-5 --num_epochs 10 \
+    python train.py -c 2 -p your_project_name --batch_size 8 --lr 1e-5 --num_epochs 10 \
      --load_weights /path/to/your/weights/efficientdet-d2.pth \
      --head_only True
      
@@ -173,7 +192,7 @@ ___
 
     # let says you started a training session like this.
     
-    python train.py -c 2 --batchsize 8 --lr 1e-5 \
+    python train.py -c 2 -p your_project_name --batch_size 8 --lr 1e-5 \
      --load_weights /path/to/your/weights/efficientdet-d2.pth \
      --head_only True
      
@@ -182,7 +201,7 @@ ___
     # now you want to resume training from the last checkpoint
     # simply set load_weights to 'last'
     
-    python train.py -c 2 --batchsize 8 --lr 1e-5 \
+    python train.py -c 2 -p your_project_name --batch_size 8 --lr 1e-5 \
      --load_weights last \
      --head_only True
 
@@ -196,7 +215,7 @@ ___
 ## 7. Debug training (optional)
     
     # when you get bad result, you need to debug the training result.
-    python train.py -c 2 --batchsize 8 --lr 1e-5 --debug True
+    python train.py -c 2 -p your_project_name --batch_size 8 --lr 1e-5 --debug True
     
     # then checkout test/ folder, there you can visualize the predicted boxes during training
     # don't panic if you see countless of error boxes, it happens when the training is at early stage.
@@ -295,7 +314,7 @@ A3: Check out the update log if it's been fixed, then pull the latest code to tr
     
 # Visual Comparison
 
-Conclusion: They are providing almost the same precision.
+Conclusion: They are providing almost the same precision. Tips: set `force_input_size=1920`. Official repo uses original image size while this repo uses default network input size. If you try to compare these two repos, you must make sure the input size is consistent.
 
 ## This Repo
 <img src="https://raw.githubusercontent.com/zylo117/Yet-Another-Efficient-Pytorch/master/test/img_inferred_d0_this_repo.jpg" width="640">

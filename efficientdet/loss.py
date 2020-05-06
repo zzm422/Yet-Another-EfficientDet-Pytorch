@@ -38,10 +38,10 @@ class FocalLoss(nn.Module):
         anchor = anchors[0, :, :]  # assuming all image sizes are the same, which it is
         dtype = anchors.dtype
 
-        anchor_widths = anchor[:, 2] - anchor[:, 0]
-        anchor_heights = anchor[:, 3] - anchor[:, 1]
-        anchor_ctr_x = anchor[:, 0] + 0.5 * anchor_widths
-        anchor_ctr_y = anchor[:, 1] + 0.5 * anchor_heights
+        anchor_widths = anchor[:, 3] - anchor[:, 1]
+        anchor_heights = anchor[:, 2] - anchor[:, 0]
+        anchor_ctr_x = anchor[:, 1] + 0.5 * anchor_widths
+        anchor_ctr_y = anchor[:, 0] + 0.5 * anchor_heights
 
         for j in range(batch_size):
 
@@ -51,18 +51,39 @@ class FocalLoss(nn.Module):
             bbox_annotation = annotations[j]
             bbox_annotation = bbox_annotation[bbox_annotation[:, 4] != -1]
 
+            classification = torch.clamp(classification, 1e-4, 1.0 - 1e-4)
+            
             if bbox_annotation.shape[0] == 0:
                 if torch.cuda.is_available():
+                    
+                    alpha_factor = torch.ones_like(classification) * alpha
+                    alpha_factor = alpha_factor.cuda()
+                    alpha_factor = 1. - alpha_factor
+                    focal_weight = classification
+                    focal_weight = alpha_factor * torch.pow(focal_weight, gamma)
+                    
+                    bce = -(torch.log(1.0 - classification))
+                    
+                    cls_loss = focal_weight * bce
+                    
                     regression_losses.append(torch.tensor(0).to(dtype).cuda())
-                    classification_losses.append(torch.tensor(0).to(dtype).cuda())
+                    classification_losses.append(cls_loss.sum())
                 else:
+                    
+                    alpha_factor = torch.ones_like(classification) * alpha
+                    alpha_factor = 1. - alpha_factor
+                    focal_weight = classification
+                    focal_weight = alpha_factor * torch.pow(focal_weight, gamma)
+                    
+                    bce = -(torch.log(1.0 - classification))
+                    
+                    cls_loss = focal_weight * bce
+                    
                     regression_losses.append(torch.tensor(0).to(dtype))
-                    classification_losses.append(torch.tensor(0).to(dtype))
+                    classification_losses.append(cls_loss.sum())
 
                 continue
-
-            classification = torch.clamp(classification, 1e-4, 1.0 - 1e-4)
-
+                
             IoU = calc_iou(anchor[:, :], bbox_annotation[:, :4])
 
             IoU_max, IoU_argmax = torch.max(IoU, dim=1)
@@ -150,7 +171,7 @@ class FocalLoss(nn.Module):
             out = postprocess(imgs.detach(),
                               torch.stack([anchors[0]] * imgs.shape[0], 0).detach(), regressions.detach(), classifications.detach(),
                               regressBoxes, clipBoxes,
-                              0.5, 0.5)
+                              0.5, 0.3)
             imgs = imgs.permute(0, 2, 3, 1).cpu().numpy()
             imgs = ((imgs * [0.229, 0.224, 0.225] + [0.485, 0.456, 0.406]) * 255).astype(np.uint8)
             imgs = [cv2.cvtColor(img, cv2.COLOR_RGB2BGR) for img in imgs]
